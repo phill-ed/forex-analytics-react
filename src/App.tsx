@@ -1,12 +1,17 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar
-} from 'react-chartjs-2'
-import {
-  Chart as ChartJS, CategoryScale, LinearScale, PointElement,
-  LineElement, BarElement, Title, Tooltip as ChartTooltip, Legend
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip as ChartTooltip,
+  Legend,
+  Filler
 } from 'chart.js'
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'react-chartjs-2'
 import {
   TrendingUp, TrendingDown, RefreshCw, DollarSign, Target,
   Shield, AlertTriangle, Calculator, BookOpen, Globe,
@@ -15,8 +20,15 @@ import {
 
 // Register ChartJS components
 ChartJS.register(
-  CategoryScale, LinearScale, PointElement, LineElement,
-  BarElement, Title, ChartTooltip, Legend
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  ChartTooltip,
+  Legend,
+  Filler
 )
 
 // Types
@@ -65,8 +77,8 @@ const generateRate = (pair: string): Rate => {
 
 const generateChartData = (pair: string) => {
   const periods = 50
-  const labels = []
-  const prices = []
+  const labels: string[] = []
+  const prices: number[] = []
   const base = 1.0850
   let price = base
   
