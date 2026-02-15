@@ -53,6 +53,13 @@ npm run dev
 npm run build
 ```
 
+#or for compatibility issue
+cd forex-analytics-react
+del /s /q node_modules
+del package-lock.json
+npm install --legacy-peer-deps
+npm run dev
+
 ### Development
 
 ```bash
