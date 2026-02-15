@@ -13,9 +13,8 @@ import {
 } from 'chart.js'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'react-chartjs-2'
 import {
-  TrendingUp, TrendingDown, RefreshCw, DollarSign, Target,
-  Shield, AlertTriangle, Calculator, BookOpen, Globe,
-  Activity, Clock, Zap, Moon, Sun
+  TrendingUp, TrendingDown, RefreshCw, Target,
+  Activity, Zap, Calculator, BookOpen
 } from 'lucide-react'
 
 // Register ChartJS components
@@ -75,7 +74,7 @@ const generateRate = (pair: string): Rate => {
   }
 }
 
-const generateChartData = (pair: string) => {
+const generateChartData = (_pair: string) => {
   const periods = 50
   const labels: string[] = []
   const prices: number[] = []
@@ -148,7 +147,7 @@ const EconomicEventItem = ({ event }: { event: EconomicEvent }) => (
 
 // Main App Component
 function App() {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [selectedCategory, setSelectedCategory] = useState('majors')
   const [selectedPair, setSelectedPair] = useState('EUR/USD')
