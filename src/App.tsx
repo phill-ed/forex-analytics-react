@@ -5,10 +5,9 @@ import {
   LineElement, Title, Tooltip, Legend, Filler
 } from 'chart.js'
 import {
-  TrendingUp, TrendingDown, RefreshCw, DollarSign, Target,
-  Shield, AlertTriangle, Calculator, BookOpen, Globe,
-  Activity, Clock, Zap, Moon, Sun
+  RefreshCw, Calculator, BookOpen, Activity, Zap
 } from 'lucide-react'
+import './App.css'
 
 // Register ChartJS components
 ChartJS.register(
@@ -61,7 +60,7 @@ const generateRate = (pair: string): Rate => {
   }
 }
 
-const generateChartData = (pair: string) => {
+const generateChartData = () => {
   const periods = 50
   const labels = []
   const prices = []
@@ -134,7 +133,6 @@ const EconomicEventItem = ({ event }: { event: EconomicEvent }) => (
 
 // Main App Component
 function App() {
-  const [darkMode, setDarkMode] = useState(false)
   const [activeTab, setActiveTab] = useState('dashboard')
   const [selectedCategory, setSelectedCategory] = useState('majors')
   const [selectedPair, setSelectedPair] = useState('EUR/USD')
@@ -155,10 +153,10 @@ function App() {
     setRates(newRates)
     
     // Generate chart data
-    setChartData(generateChartData(selectedPair))
+    setChartData(generateChartData())
     
     setLastUpdated(new Date())
-  }, [selectedCategory, selectedPair])
+  }, [selectedCategory])
 
   useEffect(() => {
     refreshData()
@@ -250,7 +248,7 @@ function App() {
   )
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}>
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="gradient-bg text-white py-6 px-4 shadow-lg">
         <div className="max-w-7xl mx-auto">
@@ -490,7 +488,6 @@ function App() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg" />
                 <button
                   onClick={() => {
-                    const pair = (document.getElementById('pip-pair') as HTMLSelectElement).value
                     const lots = parseFloat((document.getElementById('lots') as HTMLInputElement).value) || 1
                     const pipValue = lots * 10
                     alert(`Pip Value: $${pipValue.toFixed(2)} per lot`)
@@ -515,19 +512,6 @@ function App() {
           </p>
         </div>
       </footer>
-
-      {/* Styles */}
-      <style>{`
-        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .card { background: white; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .rate-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); border-radius: 16px; color: white; padding: 20px; }
-        .rate-card.bearish { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
-        .tab-active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .signal-buy { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 4px 16px; border-radius: 20px; font-weight: 600; }
-        .signal-sell { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: white; padding: 4px 16px; border-radius: 20px; font-weight: 600; }
-        .signal-hold { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); color: #333; padding: 4px 16px; border-radius: 20px; font-weight: 600; }
-        .news-card { background: white; border-radius: 12px; padding: 15px; margin: 8px 0; border-left: 4px solid #667eea; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-      `}</style>
     </div>
   )
 }
