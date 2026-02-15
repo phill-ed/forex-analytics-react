@@ -1,197 +1,111 @@
-import { useState } from 'react'
-import { Calculator, TrendingUp, TrendingDown, DollarSign, Percent, AlertTriangle, Wallet } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { 
+  Calculator, TrendingUp, TrendingDown, Info, 
+  RefreshCw, Settings, DollarSign, Percent, AlertTriangle
+} from 'lucide-react'
 
-interface CalculatorInput {
-  id: string
-  label: string
-  type: 'number' | 'select'
-  options?: { value: string; label: string }[]
-  defaultValue: string | number
-  step?: string
-  prefix?: string
-  suffix?: string
+// Calculator types
+type CalculatorType = 'position' | 'risk' | 'pip' | 'margin' | 'lot'
+
+// Currency pairs info
+const PAIR_INFO: Record<string, { pip: number, lotSize: number, currency: string }> = {
+  'EUR/USD': { pip: 0.0001, lotSize: 100000, currency: 'EUR' },
+  'GBP/USD': { pip: 0.0001, lotSize: 100000, currency: 'GBP' },
+  'USD/JPY': { pip: 0.01, lotSize: 100000, currency: 'JPY' },
+  'USD/CHF': { pip: 0.0001, lotSize: 100000, currency: 'CHF' },
+  'AUD/USD': { pip: 0.0001, lotSize: 100000, currency: 'AUD' },
+  'USD/CAD': { pip: 0.0001, lotSize: 100000, currency: 'CAD' },
+  'NZD/USD': { pip: 0.0001, lotSize: 100000, currency: 'NZD' },
+  'EUR/JPY': { pip: 0.01, lotSize: 100000, currency: 'EUR' },
+  'GBP/JPY': { pip: 0.01, lotSize: 100000, currency: 'GBP' },
 }
 
-const TradingTools = () => {
-  const [activeTool, setActiveTool] = useState('position-size')
-  
-  const tools = [
-    { id: 'position-size', name: 'Position Size', icon: <Calculator size={20} /> },
-    { id: 'risk-reward', name: 'Risk/Reward', icon: <TrendingUp size={20} /> },
-    { id: 'pip-value', name: 'Pip Value', icon: <DollarSign size={20} /> },
-    { id: 'margin', name: 'Margin', icon: <Wallet size={20} /> },
-    { id: 'lot-size', name: 'Lot Size', icon: <Percent size={20} /> }
-  ]
-  
-  const renderToolContent = () => {
-    switch (activeTool) {
-      case 'position-size':
-        return <PositionSizeCalculator />
-      case 'risk-reward':
-        return <RiskRewardCalculator />
-      case 'pip-value':
-        return <PipValueCalculator />
-      case 'margin':
-        return <MarginCalculator />
-      case 'lot-size':
-        return <LotSizeCalculator />
-      default:
-        return <PositionSizeCalculator />
-    }
-  }
-  
-  return (
-    <div className="space-y-6">
-      {/* Tool Selection */}
-      <div className="flex flex-wrap gap-2">
-        {tools.map(tool => (
-          <button
-            key={tool.id}
-            onClick={() => setActiveTool(tool.id)}
-            className={`tool-tab ${activeTool === tool.id ? 'active' : ''}`}
-          >
-            {tool.icon}
-            <span>{tool.name}</span>
-          </button>
-        ))}
-      </div>
-      
-      {/* Calculator Content */}
-      <div className="calculator-card">
-        {renderToolContent()}
-      </div>
-      
-      {/* Quick Reference */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <div className="info-card">
-          <h4 className="font-semibold mb-2 text-blue-400">📏 Standard Lots</h4>
-          <ul className="text-sm space-y-1 text-gray-400">
-            <li>1 Standard Lot = 100,000 units</li>
-            <li>1 Mini Lot = 10,000 units</li>
-            <li>1 Micro Lot = 1,000 units</li>
-            <li>1 Nano Lot = 100 units</li>
-          </ul>
-        </div>
-        
-        <div className="info-card">
-          <h4 className="font-semibold mb-2 text-green-400">⚖️ Recommended Risk</h4>
-          <ul className="text-sm space-y-1 text-gray-400">
-            <li>Conservative: 0.5-1% per trade</li>
-            <li>Moderate: 1-2% per trade</li>
-            <li>Aggressive: 2-5% per trade</li>
-            <li>Never risk more than 5%</li>
-          </ul>
-        </div>
-        
-        <div className="info-card">
-          <h4 className="font-semibold mb-2 text-purple-400">🎯 R:R Ratio</h4>
-          <ul className="text-sm space-y-1 text-gray-400">
-            <li>Minimum: 1:1 (break even)</li>
-            <li>Good: 1:2 (positive expectancy)</li>
-            <li>Recommended: 1:2 or better</li>
-            <li>Great: 1:3+ (high profit)</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  )
+interface CalculatorProps {
+  type: CalculatorType
 }
 
-// Position Size Calculator
 const PositionSizeCalculator = () => {
   const [accountBalance, setAccountBalance] = useState(10000)
-  const [riskPercent, setRiskPercent] = useState(1)
-  const [stopLoss, setStopLoss] = useState(20)
+  const [riskPercent, setRiskPercent] = useState(2)
+  const [stopLoss, setStopLoss] = useState(50)
   const [pair, setPair] = useState('EUR/USD')
-  const [result, setResult] = useState<{ lots: number; units: number; riskAmount: number } | null>(null)
-  
+  const [result, setResult] = useState<{ units: number, lots: number, riskAmount: number } | null>(null)
+
   const calculate = () => {
-    // Pip value calculation (simplified)
-    const isJPY = pair.includes('JPY')
-    const pipSize = isJPY ? 0.01 : 0.0001
-    const pipValue = 10 // $10 per standard lot for major pairs
-    
+    const info = PAIR_INFO[pair] || { pip: 0.0001, lotSize: 100000 }
     const riskAmount = accountBalance * (riskPercent / 100)
-    const pipsRisked = stopLoss
-    
-    // Calculate lot size
-    const standardLots = riskAmount / (pipsRisked * pipValue)
-    const units = standardLots * 100000
-    
+    const pipsValue = stopLoss * info.pip
+    const units = Math.floor(riskAmount / pipsValue)
+    const lots = units / info.lotSize
+
     setResult({
-      lots: standardLots,
-      units: units,
-      riskAmount: riskAmount
+      units,
+      lots: Math.round(lots * 100) / 100,
+      riskAmount: Math.round(riskAmount * 100) / 100
     })
   }
-  
+
+  useEffect(calculate, [accountBalance, riskPercent, stopLoss, pair])
+
   return (
     <div className="space-y-4">
-      <h3 className="text-xl font-bold flex items-center gap-2">
-        <Calculator className="text-blue-400" /> Position Size Calculator
-      </h3>
-      <p className="text-gray-400 text-sm">Calculate the optimal lot size based on your account balance and risk tolerance.</p>
-      
       <div className="grid md:grid-cols-2 gap-4">
-        <div className="input-group">
-          <label>Account Balance ($)</label>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Account Balance</label>
           <input
             type="number"
             value={accountBalance}
-            onChange={(e) => setAccountBalance(Number(e.target.value))}
+            onChange={(e) => setAccountBalance(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
           />
         </div>
-        
-        <div className="input-group">
-          <label>Risk Percentage (%)</label>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Risk Percentage (%)</label>
           <input
             type="number"
             value={riskPercent}
-            onChange={(e) => setRiskPercent(Number(e.target.value))}
-            step="0.1"
+            onChange={(e) => setRiskPercent(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
           />
         </div>
-        
-        <div className="input-group">
-          <label>Stop Loss (pips)</label>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Stop Loss (Pips)</label>
           <input
             type="number"
             value={stopLoss}
-            onChange={(e) => setStopLoss(Number(e.target.value))}
+            onChange={(e) => setStopLoss(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
           />
         </div>
-        
-        <div className="input-group">
-          <label>Currency Pair</label>
-          <select value={pair} onChange={(e) => setPair(e.target.value)}>
-            <option value="EUR/USD">EUR/USD</option>
-            <option value="GBP/USD">GBP/USD</option>
-            <option value="USD/JPY">USD/JPY</option>
-            <option value="USD/CHF">USD/CHF</option>
-            <option value="AUD/USD">AUD/USD</option>
-            <option value="USD/CAD">USD/CAD</option>
-            <option value="NZD/USD">NZD/USD</option>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Currency Pair</label>
+          <select
+            value={pair}
+            onChange={(e) => setPair(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
+          >
+            {Object.keys(PAIR_INFO).map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
           </select>
         </div>
       </div>
-      
-      <button onClick={calculate} className="btn-calculate">
-        Calculate Position Size
-      </button>
-      
+
       {result && (
-        <div className="result-box">
-          <div className="result-item">
-            <span className="result-label">Position Size</span>
-            <span className="result-value text-blue-400">{result.lots.toFixed(2)} lots</span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">Units</span>
-            <span className="result-value">{result.units.toLocaleString()}</span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">Risk Amount</span>
-            <span className="result-value text-red-400">${result.riskAmount.toFixed(2)}</span>
+        <div className="mt-4 p-4 bg-purple-900/30 rounded-lg border border-purple-800">
+          <div className="grid md:grid-cols-3 gap-4 text-center">
+            <div>
+              <div className="text-gray-400 text-sm">Position Size</div>
+              <div className="text-2xl font-bold text-white">{result.lots} Lots</div>
+            </div>
+            <div>
+              <div className="text-gray-400 text-sm">Units</div>
+              <div className="text-2xl font-bold text-white">{result.units.toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-gray-400 text-sm">Risk Amount</div>
+              <div className="text-2xl font-bold text-red-400">${result.riskAmount}</div>
+            </div>
           </div>
         </div>
       )}
@@ -199,94 +113,103 @@ const PositionSizeCalculator = () => {
   )
 }
 
-// Risk/Reward Calculator
 const RiskRewardCalculator = () => {
   const [entryPrice, setEntryPrice] = useState(1.0850)
-  const [stopLoss, setStopLoss] = useState(1.0820)
-  const [takeProfit, setTakeProfit] = useState(1.0920)
-  const [result, setResult] = useState<{ riskPips: number; rewardPips: number; rrRatio: number; recommendation: string } | null>(null)
-  
+  const [stopLoss, setStopLoss] = useState(1.0800)
+  const [takeProfit, setTakeProfit] = useState(1.0950)
+  const [lotSize, setLotSize] = useState(1)
+  const [pair, setPair] = useState('EUR/USD')
+  const [result, setResult] = useState<{ rr: number, profit: number, loss: number } | null>(null)
+
   const calculate = () => {
-    const isJPY = entryPrice > 100
-    const pipSize = isJPY ? 0.01 : 0.0001
+    const info = PAIR_INFO[pair] || { pip: 0.0001, lotSize: 100000 }
+    const pipsToStop = Math.abs(entryPrice - stopLoss) / info.pip
+    const pipsToTarget = Math.abs(takeProfit - entryPrice) / info.pip
+    const rr = pipsToTarget / pipsToStop
     
-    const riskPips = Math.abs(entryPrice - stopLoss) / pipSize
-    const rewardPips = Math.abs(takeProfit - entryPrice) / pipSize
-    const rrRatio = riskPips > 0 ? rewardPips / riskPips : 0
-    
-    let recommendation = ''
-    if (rrRatio >= 2) {
-      recommendation = '✅ Excellent! Ratio ≥ 2:1 - Good for trading'
-    } else if (rrRatio >= 1.5) {
-      recommendation = '👍 Good ratio - Consider 2:1 for better results'
-    } else if (rrRatio >= 1) {
-      recommendation = '⚠️ Minimum acceptable - Aim for 2:1 or better'
-    } else {
-      recommendation = '❌ Poor ratio - Not recommended, look for better setups'
-    }
-    
-    setResult({ riskPips, rewardPips, rrRatio, recommendation })
+    const pipsValue = info.pip * info.lotSize * lotSize
+    const profit = pipsToTarget * pipsValue
+    const loss = pipsToStop * pipsValue
+
+    setResult({
+      rr: Math.round(rr * 10) / 10,
+      profit: Math.round(profit * 100) / 100,
+      loss: Math.round(loss * 100) / 100
+    })
   }
-  
+
+  useEffect(calculate, [entryPrice, stopLoss, takeProfit, lotSize, pair])
+
   return (
     <div className="space-y-4">
-      <h3 className="text-xl font-bold flex items-center gap-2">
-        <TrendingUp className="text-green-400" /> Risk/Reward Calculator
-      </h3>
-      <p className="text-gray-400 text-sm">Calculate your risk/reward ratio to ensure favorable trade setups.</p>
-      
-      <div className="grid md:grid-cols-3 gap-4">
-        <div className="input-group">
-          <label>Entry Price</label>
+      <div className="grid md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Entry Price</label>
           <input
             type="number"
+            step="0.0001"
             value={entryPrice}
-            onChange={(e) => setEntryPrice(Number(e.target.value))}
-            step="0.00001"
+            onChange={(e) => setEntryPrice(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
           />
         </div>
-        
-        <div className="input-group">
-          <label className="text-red-400">Stop Loss</label>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Stop Loss</label>
           <input
             type="number"
+            step="0.0001"
             value={stopLoss}
-            onChange={(e) => setStopLoss(Number(e.target.value))}
-            step="0.00001"
+            onChange={(e) => setStopLoss(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
           />
         </div>
-        
-        <div className="input-group">
-          <label className="text-green-400">Take Profit</label>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Take Profit</label>
           <input
             type="number"
+            step="0.0001"
             value={takeProfit}
-            onChange={(e) => setTakeProfit(Number(e.target.value))}
-            step="0.00001"
+            onChange={(e) => setTakeProfit(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Lot Size</label>
+          <input
+            type="number"
+            step="0.01"
+            value={lotSize}
+            onChange={(e) => setLotSize(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
           />
         </div>
       </div>
-      
-      <button onClick={calculate} className="btn-calculate">
-        Calculate R:R Ratio
-      </button>
-      
+
       {result && (
-        <div className="result-box">
-          <div className="result-item">
-            <span className="result-label">Risk</span>
-            <span className="result-value text-red-400">{result.riskPips.toFixed(1)} pips</span>
+        <div className="mt-4 space-y-3">
+          <div className={`p-4 rounded-lg border ${
+            result.rr >= 2 ? 'bg-green-900/30 border-green-800' :
+            result.rr >= 1 ? 'bg-yellow-900/30 border-yellow-800' :
+            'bg-red-900/30 border-red-800'
+          }`}>
+            <div className="text-center">
+              <div className="text-gray-400 text-sm">Risk/Reward Ratio</div>
+              <div className="text-3xl font-bold text-white">1:{result.rr}</div>
+              <div className="text-sm text-gray-400 mt-1">
+                {result.rr >= 2 ? '✅ Good risk/reward' : result.rr >= 1 ? '⚠️ Acceptable' : '❌ Poor risk/reward'}
+              </div>
+            </div>
           </div>
-          <div className="result-item">
-            <span className="result-label">Reward</span>
-            <span className="result-value text-green-400">{result.rewardPips.toFixed(1)} pips</span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">R:R Ratio</span>
-            <span className="result-value text-blue-400">1:{result.rrRatio.toFixed(2)}</span>
-          </div>
-          <div className="mt-4 p-3 bg-gray-800 rounded-lg">
-            <p className="text-sm">{result.recommendation}</p>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-red-900/30 rounded-lg border border-red-800 text-center">
+              <div className="text-gray-400 text-sm">Potential Loss</div>
+              <div className="text-xl font-bold text-red-400">-${result.loss}</div>
+            </div>
+            <div className="p-4 bg-green-900/30 rounded-lg border border-green-800 text-center">
+              <div className="text-gray-400 text-sm">Potential Profit</div>
+              <div className="text-xl font-bold text-green-400">+${result.profit}</div>
+            </div>
           </div>
         </div>
       )}
@@ -294,70 +217,62 @@ const RiskRewardCalculator = () => {
   )
 }
 
-// Pip Value Calculator
 const PipValueCalculator = () => {
-  const [pair, setPair] = useState('EUR/USD')
   const [lotSize, setLotSize] = useState(1)
+  const [pair, setPair] = useState('EUR/USD')
   const [accountCurrency, setAccountCurrency] = useState('USD')
-  const [result, setResult] = useState<{ pipValue: number; pipValueInAccount: number } | null>(null)
-  
+  const [result, setResult] = useState<{ pipValue: number, perPip: number } | null>(null)
+
   const calculate = () => {
-    // Base pip values per standard lot
-    const pipValues: Record<string, number> = {
-      'EUR/USD': 10, 'GBP/USD': 10, 'USD/JPY': 10, 'USD/CHF': 10,
-      'AUD/USD': 10, 'USD/CAD': 10, 'NZD/USD': 10,
-      'EUR/GBP': 10, 'EUR/JPY': 1000, 'GBP/JPY': 1000,
-      'AUD/JPY': 1000, 'NZD/JPY': 1000
-    }
+    const info = PAIR_INFO[pair] || { pip: 0.0001, lotSize: 100000 }
+    const basePipValue = info.pip * info.lotSize * lotSize
     
-    const basePipValue = pipValues[pair] || 10
-    const pipValue = basePipValue * lotSize
+    // Simplified conversion (in real app, would fetch actual rates)
+    const rates: Record<string, number> = { EUR: 1.08, GBP: 1.27, JPY: 0.0067, CHF: 1.13, AUD: 0.66, CAD: 0.74, NZD: 0.61 }
+    const conversion = accountCurrency === 'USD' ? 1 : (1 / (rates[info.currency] || 1))
     
-    // Simplified conversion (would need actual rates in production)
-    let pipValueInAccount = pipValue
-    if (accountCurrency !== 'USD') {
-      pipValueInAccount = pipValue * 0.95 // Simplified rate
-    }
+    const perPip = basePipValue * conversion
     
-    setResult({ pipValue, pipValueInAccount })
+    setResult({
+      pipValue: perPip,
+      perPip: Math.round(perPip * 100) / 100
+    })
   }
-  
+
+  useEffect(calculate, [lotSize, pair, accountCurrency])
+
   return (
     <div className="space-y-4">
-      <h3 className="text-xl font-bold flex items-center gap-2">
-        <DollarSign className="text-yellow-400" /> Pip Value Calculator
-      </h3>
-      <p className="text-gray-400 text-sm">Calculate the monetary value of a pip for your trade size.</p>
-      
       <div className="grid md:grid-cols-3 gap-4">
-        <div className="input-group">
-          <label>Currency Pair</label>
-          <select value={pair} onChange={(e) => setPair(e.target.value)}>
-            <option value="EUR/USD">EUR/USD</option>
-            <option value="GBP/USD">GBP/USD</option>
-            <option value="USD/JPY">USD/JPY</option>
-            <option value="USD/CHF">USD/CHF</option>
-            <option value="AUD/USD">AUD/USD</option>
-            <option value="USD/CAD">USD/CAD</option>
-            <option value="EUR/JPY">EUR/JPY</option>
-            <option value="GBP/JPY">GBP/JPY</option>
-            <option value="AUD/JPY">AUD/JPY</option>
-          </select>
-        </div>
-        
-        <div className="input-group">
-          <label>Lot Size</label>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Lot Size</label>
           <input
             type="number"
-            value={lotSize}
-            onChange={(e) => setLotSize(Number(e.target.value))}
             step="0.01"
+            value={lotSize}
+            onChange={(e) => setLotSize(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
           />
         </div>
-        
-        <div className="input-group">
-          <label>Account Currency</label>
-          <select value={accountCurrency} onChange={(e) => setAccountCurrency(e.target.value)}>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Currency Pair</label>
+          <select
+            value={pair}
+            onChange={(e) => setPair(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
+          >
+            {Object.keys(PAIR_INFO).map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Account Currency</label>
+          <select
+            value={accountCurrency}
+            onChange={(e) => setAccountCurrency(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
+          >
             <option value="USD">USD</option>
             <option value="EUR">EUR</option>
             <option value="GBP">GBP</option>
@@ -365,20 +280,15 @@ const PipValueCalculator = () => {
           </select>
         </div>
       </div>
-      
-      <button onClick={calculate} className="btn-calculate">
-        Calculate Pip Value
-      </button>
-      
+
       {result && (
-        <div className="result-box">
-          <div className="result-item">
-            <span className="result-label">Pip Value (per lot)</span>
-            <span className="result-value text-green-400">${result.pipValue.toFixed(2)}</span>
-          </div>
-          <div className="result-item">
-            <span className="result-label">Total Pip Value</span>
-            <span className="result-value text-blue-400">${result.pipValueInAccount.toFixed(2)}</span>
+        <div className="mt-4 p-4 bg-blue-900/30 rounded-lg border border-blue-800">
+          <div className="text-center">
+            <div className="text-gray-400 text-sm">Pip Value ({accountCurrency})</div>
+            <div className="text-3xl font-bold text-white">${result.perPip}</div>
+            <div className="text-sm text-gray-400 mt-1">
+              Per 1 pip move at {lotSize} lots
+            </div>
           </div>
         </div>
       )}
@@ -386,74 +296,46 @@ const PipValueCalculator = () => {
   )
 }
 
-// Margin Calculator
 const MarginCalculator = () => {
-  const [pair, setPair] = useState('EUR/USD')
   const [lotSize, setLotSize] = useState(1)
   const [leverage, setLeverage] = useState(100)
-  const [result, setResult] = useState<{ requiredMargin: number; usableMargin: number } | null>(null)
-  
+  const [pair, setPair] = useState('EUR/USD')
+  const [result, setResult] = useState<{ required: number, effective: number } | null>(null)
+
   const calculate = () => {
-    // Contract size (standard lot)
-    const contractSize = 100000
-    
-    // Get base currency
-    const baseCurrency = pair.split('/')[0]
-    
-    // Simplified margin calculation
-    const marginPerLot = contractSize / leverage
-    const requiredMargin = marginPerLot * lotSize
-    
-    // For demo, assume account in USD
-    let marginInUSD = requiredMargin
-    if (baseCurrency !== 'USD') {
-      // Simplified conversion
-      marginInUSD = requiredCurrency * 1.1
-    }
-    
+    const info = PAIR_INFO[pair] || { lotSize: 100000 }
+    const contractSize = info.lotSize * lotSize
+    const required = contractSize / leverage
+    const effective = contractSize
+
     setResult({
-      requiredMargin: marginInUSD,
-      usableMargin: 10000 - marginInUSD // Assuming $10k account
+      required: Math.round(required * 100) / 100,
+      effective: Math.round(effective * 100) / 100
     })
   }
-  
-  // Need to fix the margin calculation
-  const requiredCurrency = pair.includes('JPY') ? lotSize * 100000 / leverage : lotSize * 100000 / leverage
-  
+
+  useEffect(calculate, [lotSize, leverage, pair])
+
   return (
     <div className="space-y-4">
-      <h3 className="text-xl font-bold flex items-center gap-2">
-        <Wallet className="text-purple-400" /> Margin Calculator
-      </h3>
-      <p className="text-gray-400 text-sm">Calculate the required margin for your trades based on leverage.</p>
-      
       <div className="grid md:grid-cols-3 gap-4">
-        <div className="input-group">
-          <label>Currency Pair</label>
-          <select value={pair} onChange={(e) => setPair(e.target.value)}>
-            <option value="EUR/USD">EUR/USD</option>
-            <option value="GBP/USD">GBP/USD</option>
-            <option value="USD/JPY">USD/JPY</option>
-            <option value="USD/CHF">USD/CHF</option>
-            <option value="AUD/USD">AUD/USD</option>
-            <option value="EUR/GBP">EUR/GBP</option>
-            <option value="EUR/JPY">EUR/JPY</option>
-          </select>
-        </div>
-        
-        <div className="input-group">
-          <label>Lot Size</label>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Lot Size</label>
           <input
             type="number"
-            value={lotSize}
-            onChange={(e) => setLotSize(Number(e.target.value))}
             step="0.01"
+            value={lotSize}
+            onChange={(e) => setLotSize(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
           />
         </div>
-        
-        <div className="input-group">
-          <label>Leverage</label>
-          <select value={leverage} onChange={(e) => setLeverage(Number(e.target.value))}>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Leverage</label>
+          <select
+            value={leverage}
+            onChange={(e) => setLeverage(parseInt(e.target.value))}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
+          >
             <option value="10">1:10</option>
             <option value="20">1:20</option>
             <option value="50">1:50</option>
@@ -462,26 +344,116 @@ const MarginCalculator = () => {
             <option value="500">1:500</option>
           </select>
         </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Currency Pair</label>
+          <select
+            value={pair}
+            onChange={(e) => setPair(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
+          >
+            {Object.keys(PAIR_INFO).map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
       </div>
-      
-      <button onClick={calculate} className="btn-calculate">
-        Calculate Margin
-      </button>
-      
+
       {result && (
-        <div className="result-box">
-          <div className="result-item">
-            <span className="result-label">Required Margin</span>
-            <span className="result-value text-yellow-400">${result.requiredMargin.toFixed(2)}</span>
+        <div className="mt-4 grid md:grid-cols-2 gap-4">
+          <div className="p-4 bg-yellow-900/30 rounded-lg border border-yellow-800 text-center">
+            <div className="text-gray-400 text-sm">Required Margin</div>
+            <div className="text-2xl font-bold text-white">${result.required.toLocaleString()}</div>
           </div>
-          <div className="result-item">
-            <span className="result-label">Usable Margin</span>
-            <span className="result-value text-green-400">${result.usableMargin.toFixed(2)}</span>
+          <div className="p-4 bg-purple-900/30 rounded-lg border border-purple-800 text-center">
+            <div className="text-gray-400 text-sm">Position Value</div>
+            <div className="text-2xl font-bold text-white">${result.effective.toLocaleString()}</div>
           </div>
-          <div className="mt-3 p-3 bg-yellow-900/30 border border-yellow-700 rounded-lg">
-            <div className="flex items-center gap-2 text-yellow-400">
-              <AlertTriangle size={16} />
-              <span className="text-sm">High leverage increases both profits and losses</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const LotSizeCalculator = () => {
+  const [accountBalance, setAccountBalance] = useState(10000)
+  const [riskPercent, setRiskPercent] = useState(2)
+  const [stopLossPips, setStopLossPips] = useState(50)
+  const [pair, setPair] = useState('EUR/USD')
+  const [result, setResult] = useState<{ lots: number, units: number, riskAmount: number } | null>(null)
+
+  const calculate = () => {
+    const info = PAIR_INFO[pair] || { pip: 0.0001, lotSize: 100000 }
+    const riskAmount = accountBalance * (riskPercent / 100)
+    const pipsValue = stopLossPips * info.pip * info.lotSize
+    const lots = riskAmount / pipsValue
+
+    setResult({
+      lots: Math.round(lots * 100) / 100,
+      units: Math.floor(lots * info.lotSize),
+      riskAmount: Math.round(riskAmount * 100) / 100
+    })
+  }
+
+  useEffect(calculate, [accountBalance, riskPercent, stopLossPips, pair])
+
+  return (
+    <div className="space-y-4">
+      <div className="grid md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Account Balance</label>
+          <input
+            type="number"
+            value={accountBalance}
+            onChange={(e) => setAccountBalance(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Risk Percentage (%)</label>
+          <input
+            type="number"
+            value={riskPercent}
+            onChange={(e) => setRiskPercent(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Stop Loss (Pips)</label>
+          <input
+            type="number"
+            value={stopLossPips}
+            onChange={(e) => setStopLossPips(parseFloat(e.target.value) || 0)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
+          />
+        </div>
+        <div>
+          <label className="block text-sm text-gray-400 mb-1">Currency Pair</label>
+          <select
+            value={pair}
+            onChange={(e) => setPair(e.target.value)}
+            className="w-full bg-gray-900 border border-gray-700 rounded-lg px-4 py-2"
+          >
+            {Object.keys(PAIR_INFO).map(p => (
+              <option key={p} value={p}>{p}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {result && (
+        <div className="mt-4 p-4 bg-green-900/30 rounded-lg border border-green-800">
+          <div className="grid md:grid-cols-3 gap-4 text-center">
+            <div>
+              <div className="text-gray-400 text-sm">Recommended Lots</div>
+              <div className="text-2xl font-bold text-white">{result.lots}</div>
+            </div>
+            <div>
+              <div className="text-gray-400 text-sm">Units</div>
+              <div className="text-2xl font-bold text-white">{result.units.toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-gray-400 text-sm">Risk Amount</div>
+              <div className="text-2xl font-bold text-red-400">${result.riskAmount}</div>
             </div>
           </div>
         </div>
@@ -490,108 +462,68 @@ const MarginCalculator = () => {
   )
 }
 
-// Lot Size Calculator
-const LotSizeCalculator = () => {
-  const [accountBalance, setAccountBalance] = useState(10000)
-  const [riskAmount, setRiskAmount] = useState(100)
-  const [entryPrice, setEntryPrice] = useState(1.0850)
-  const [stopLossPrice, setStopLossPrice] = useState(1.0820)
-  const [result, setResult] = useState<{ lots: number; standardLots: number; miniLots: number; microLots: number } | null>(null)
-  
-  const calculate = () => {
-    const isJPY = entryPrice > 100
-    const pipSize = isJPY ? 0.01 : 0.0001
-    
-    const pipsAtRisk = Math.abs(entryPrice - stopLossPrice) / pipSize
-    
-    if (pipsAtRisk === 0) return
-    
-    // Pip value per standard lot
-    const pipValuePerLot = 10 // For USD pairs
-    
-    const standardLots = riskAmount / (pipsAtRisk * pipValuePerLot)
-    
-    setResult({
-      lots: standardLots,
-      standardLots: Math.floor(standardLots),
-      miniLots: Math.floor((standardLots - Math.floor(standardLots)) * 10),
-      microLots: Math.round((standardLots % 0.1) * 100)
-    })
-  }
-  
+const TradingTools = () => {
+  const [activeCalc, setActiveCalc] = useState<CalculatorType>('position')
+
+  const calculators = [
+    { id: 'position', label: '📊 Position Size', icon: Calculator, component: PositionSizeCalculator },
+    { id: 'risk', label: '⚖️ Risk/Reward', icon: TrendingUp, component: RiskRewardCalculator },
+    { id: 'pip', label: '💰 Pip Value', icon: DollarSign, component: PipValueCalculator },
+    { id: 'margin', label: '🏦 Margin', icon: Percent, component: MarginCalculator },
+    { id: 'lot', label: '📈 Lot Size', icon: TrendingDown, component: LotSizeCalculator },
+  ]
+
+  const ActiveComponent = calculators.find(c => c.id === activeCalc)?.component || PositionSizeCalculator
+
   return (
-    <div className="space-y-4">
-      <h3 className="text-xl font-bold flex items-center gap-2">
-        <Percent className="text-cyan-400" /> Lot Size Calculator
-      </h3>
-      <p className="text-gray-400 text-sm">Convert your risk amount to different lot sizes.</p>
-      
-      <div className="grid md:grid-cols-2 gap-4">
-        <div className="input-group">
-          <label>Account Balance ($)</label>
-          <input
-            type="number"
-            value={accountBalance}
-            onChange={(e) => setAccountBalance(Number(e.target.value))}
-          />
-        </div>
-        
-        <div className="input-group">
-          <label>Risk Amount ($)</label>
-          <input
-            type="number"
-            value={riskAmount}
-            onChange={(e) => setRiskAmount(Number(e.target.value))}
-          />
-        </div>
-        
-        <div className="input-group">
-          <label>Entry Price</label>
-          <input
-            type="number"
-            value={entryPrice}
-            onChange={(e) => setEntryPrice(Number(e.target.value))}
-            step="0.00001"
-          />
-        </div>
-        
-        <div className="input-group">
-          <label className="text-red-400">Stop Loss Price</label>
-          <input
-            type="number"
-            value={stopLossPrice}
-            onChange={(e) => setStopLossPrice(Number(e.target.value))}
-            step="0.00001"
-          />
+    <div className="space-y-6">
+      {/* Calculator Tabs */}
+      <div className="flex flex-wrap gap-2">
+        {calculators.map(calc => (
+          <button
+            key={calc.id}
+            onClick={() => setActiveCalc(calc.id as CalculatorType)}
+            className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+              activeCalc === calc.id 
+                ? 'bg-purple-600 text-white' 
+                : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}
+          >
+            <calc.icon size={18} />
+            {calc.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Calculator Content */}
+      <div className="p-6 bg-gray-900/50 rounded-xl border border-gray-800">
+        <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
+          {calculators.find(c => c.id === activeCalc)?.label}
+        </h3>
+        <ActiveComponent />
+      </div>
+
+      {/* Quick Reference */}
+      <div className="p-4 bg-gray-900/30 rounded-xl border border-gray-800">
+        <h4 className="font-medium text-white mb-3 flex items-center gap-2">
+          <Info size={16} className="text-gray-400" />
+          Quick Reference
+        </h4>
+        <div className="grid md:grid-cols-3 gap-4 text-sm">
+          <div className="p-3 bg-gray-800/50 rounded-lg">
+            <div className="text-gray-400 mb-1">Standard Lot</div>
+            <div className="text-white font-medium">100,000 units</div>
+          </div>
+          <div className="p-3 bg-gray-800/50 rounded-lg">
+            <div className="text-gray-400 mb-1">Mini Lot</div>
+            <div className="text-white font-medium">10,000 units</div>
+          </div>
+          <div className="p-3 bg-gray-800/50 rounded-lg">
+            <div className="text-gray-400 mb-1">Micro Lot</div>
+            <div className="text-white font-medium">1,000 units</div>
+          </div>
         </div>
       </div>
-      
-      <button onClick={calculate} className="btn-calculate">
-        Calculate Lot Size
-      </button>
-      
-      {result && (
-        <div className="result-box">
-          <div className="result-item">
-            <span className="result-label">Exact Lot Size</span>
-            <span className="result-value text-blue-400">{result.lots.toFixed(4)} lots</span>
-          </div>
-          <div className="grid grid-cols-3 gap-3 mt-4">
-            <div className="text-center p-3 bg-gray-800 rounded-lg">
-              <div className="text-xs text-gray-400 mb-1">Standard</div>
-              <div className="text-xl font-bold text-green-400">{result.standardLots}</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800 rounded-lg">
-              <div className="text-xs text-gray-400 mb-1">Mini</div>
-              <div className="text-xl font-bold text-blue-400">{result.miniLots}</div>
-            </div>
-            <div className="text-center p-3 bg-gray-800 rounded-lg">
-              <div className="text-xs text-gray-400 mb-1">Micro</div>
-              <div className="text-xl font-bold text-purple-400">{result.microLots}</div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
