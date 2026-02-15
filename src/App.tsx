@@ -1,11 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar
-} from 'react-chartjs-2'
+import { Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
-  LineElement, BarElement, Title, Tooltip as ChartTooltip, Legend
+  LineElement, Title, Tooltip, Legend, Filler
 } from 'chart.js'
 import {
   TrendingUp, TrendingDown, RefreshCw, DollarSign, Target,
@@ -16,7 +13,7 @@ import {
 // Register ChartJS components
 ChartJS.register(
   CategoryScale, LinearScale, PointElement, LineElement,
-  BarElement, Title, ChartTooltip, Legend
+  Title, Tooltip, Legend, Filler
 )
 
 // Types
@@ -47,7 +44,8 @@ const generateRate = (pair: string): Rate => {
     'EUR/USD': 1.0850, 'GBP/USD': 1.2650, 'USD/JPY': 150.50,
     'USD/CHF': 0.8850, 'AUD/USD': 0.6520, 'USD/CAD': 1.3650,
     'EUR/GBP': 0.8580, 'EUR/JPY': 163.5, 'GBP/JPY': 190.5,
-    'USD/IDR': 15600, 'USD/SGD': 1.345
+    'EUR/AUD': 1.6650, 'USD/IDR': 15600, 'USD/SGD': 1.345,
+    'AUD/NZD': 1.0850
   }
   
   const base = baseRates[pair] || 1.0
@@ -192,7 +190,7 @@ function App() {
     { event: 'German GDP', time: 'Tomorrow 09:00 GMT', impact: 'MEDIUM', currency: 'EUR' }
   ]
 
-  // Chart configuration
+  // Chart configuration - FIXED!
   const lineChartData = {
     labels: chartData.labels,
     datasets: [{
@@ -202,7 +200,9 @@ function App() {
       backgroundColor: 'rgba(102, 126, 234, 0.1)',
       fill: true,
       tension: 0.4,
-      pointRadius: 2
+      pointRadius: 2,
+      pointHoverRadius: 5,
+      borderWidth: 2
     }]
   }
 
@@ -210,11 +210,28 @@ function App() {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: false }
+      legend: { 
+        display: true,
+        position: 'top' as const
+      },
+      tooltip: {
+        mode: 'index' as const,
+        intersect: false
+      }
     },
     scales: {
-      x: { grid: { display: false } },
-      y: { grid: { color: 'rgba(0,0,0,0.1)' } }
+      x: { 
+        grid: { display: false },
+        ticks: { maxRotation: 45, minRotation: 45 }
+      },
+      y: { 
+        grid: { color: 'rgba(0,0,0,0.1)' },
+        ticks: { 
+          callback: function(value: any) {
+            return value.toFixed(5)
+          }
+        }
+      }
     }
   }
 
@@ -316,7 +333,7 @@ function App() {
         {/* Live Rates */}
         <section className="mb-8">
           <h2 className="text-xl font-bold text-gray-800 mb-4">💹 Live Rates</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {rates.map(rate => (
               <RateCard key={rate.pair} rate={rate} />
             ))}
@@ -337,15 +354,7 @@ function App() {
             <div className="lg:col-span-2 card p-6">
               <h3 className="text-lg font-bold text-gray-800 mb-4">📈 Price Chart - {selectedPair}</h3>
               <div className="h-96">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={lineChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="labels" />
-                    <YAxis domain={['auto', 'auto']} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="data" stroke="#667eea" fill="rgba(102, 126, 234, 0.1)" />
-                  </LineChart>
-                </ResponsiveContainer>
+                <Line data={lineChartData} options={chartOptions} />
               </div>
             </div>
             <div className="card p-6">
@@ -502,7 +511,7 @@ function App() {
           <p className="text-gray-400 mb-2">📈 Forex Analytics Dashboard</p>
           <p className="text-sm text-gray-500">⚠️ This dashboard is for educational purposes only. Not financial advice.</p>
           <p className="text-xs text-gray-600 mt-4">
-            Built with React + TypeScript + Chart.js | <a href="#" className="text-purple-400">GitHub</a>
+            Built with React + TypeScript + Chart.js | <a href="https://github.com/phill-ed/forex-analytics-react" className="text-purple-400">GitHub</a>
           </p>
         </div>
       </footer>
